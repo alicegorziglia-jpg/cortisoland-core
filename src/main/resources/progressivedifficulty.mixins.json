@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.giuli.progressivedifficulty.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "RangedAttributeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
