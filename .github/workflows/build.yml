@@ -21,5 +21,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Build with Gradle
         run: ./gradlew build
+
+      - name: Upload built jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: progressivedifficulty-jar
+          path: build/libs/*.jar
