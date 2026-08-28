@@ -51,13 +51,13 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingEvent.LivingTickEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingUseTotemEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 public class ProgressiveDifficultyEvents {
     private static final ResourceLocation HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(
@@ -322,8 +322,10 @@ public class ProgressiveDifficultyEvents {
     }
 
     @SubscribeEvent
-    public void onLivingTick(LivingTickEvent event) {
-        LivingEntity entity = event.getEntity();
+    public void onEntityTick(EntityTickEvent.Pre event) {
+        if (!(event.getEntity() instanceof LivingEntity entity)) {
+            return;
+        }
         if (entity.level().isClientSide()) {
             return;
         }
