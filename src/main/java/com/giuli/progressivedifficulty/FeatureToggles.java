@@ -35,7 +35,17 @@ public class FeatureToggles {
         LAVA_MORTAL("lava_mortal_instantanea"),
         PIES_DEBILES("pies_debiles_mas_danio_caida"),
         TOTEM_MESSAGES("mensajes_de_totem"),
-        TOTEM_WEAK("totems_normales_al_50_por_ciento");
+        TOTEM_WEAK("totems_normales_al_50_por_ciento"),
+
+        // --- Portados del plugin dedsafio (events/changes) ---
+        DOORS_INSTAKILL("puertas_matan_al_instante"),
+        BUTTONS_INSTAKILL("botones_matan_al_instante"),
+        DISABLE_NETHER("nether_desactivado"),
+        ELECTRIC_CREEPERS("creepers_siempre_cargados"),
+        NO_VILLAGER_BREEDING("aldeanos_no_se_reproducen"),
+        ENDERPEARL_HALF_HEALTH("enderpearl_quita_mitad_de_vida"),
+        PIGLINS_DROP_NUGGETS("piglins_sueltan_pepitas_de_oro"),
+        GOLEMS_REPLACED_BY_WARDENS("golems_de_hierro_reemplazados_por_wardens");
 
         private final String key;
 

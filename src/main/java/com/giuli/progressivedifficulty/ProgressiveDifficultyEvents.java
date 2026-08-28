@@ -34,23 +34,33 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.CaveSpider;
+import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.Spider;
+import net.minecraft.world.entity.monster.piglin.Piglin;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ButtonBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.animal.IronGolem;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityTeleportEvent;
+import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingUseTotemEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -58,6 +68,7 @@ import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+
 
 public class ProgressiveDifficultyEvents {
     private static final ResourceLocation HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(
@@ -156,6 +167,24 @@ public class ProgressiveDifficultyEvents {
         registerToggleCommand(dispatcher, "totemdebil", FeatureToggles.Feature.TOTEM_WEAK,
                 "Totems normales al 50% de efectividad");
 
+        // --- Portados del plugin dedsafio ---
+        registerToggleCommand(dispatcher, "doorsinstakill", FeatureToggles.Feature.DOORS_INSTAKILL,
+                "Abrir una puerta mata al instante (en survival)");
+        registerToggleCommand(dispatcher, "buttonsinstakill", FeatureToggles.Feature.BUTTONS_INSTAKILL,
+                "Usar un boton mata al instante (en survival)");
+        registerToggleCommand(dispatcher, "disablenether", FeatureToggles.Feature.DISABLE_NETHER,
+                "El Nether esta desactivado");
+        registerToggleCommand(dispatcher, "electriccreepers", FeatureToggles.Feature.ELECTRIC_CREEPERS,
+                "Los creepers siempre spawnean cargados (electricos)");
+        registerToggleCommand(dispatcher, "novillagerbreeding", FeatureToggles.Feature.NO_VILLAGER_BREEDING,
+                "Los aldeanos no se pueden reproducir");
+        registerToggleCommand(dispatcher, "enderpearlhalfhealth", FeatureToggles.Feature.ENDERPEARL_HALF_HEALTH,
+                "Usar una enderperla te quita la mitad de la vida actual");
+        registerToggleCommand(dispatcher, "piglinsnuggets", FeatureToggles.Feature.PIGLINS_DROP_NUGGETS,
+                "Los piglins sueltan pepitas de oro al morir");
+        registerToggleCommand(dispatcher, "golemswardens", FeatureToggles.Feature.GOLEMS_REPLACED_BY_WARDENS,
+                "Los golems de hierro se reemplazan por wardens al spawnear");
+
         // --- Comando para dar totems que siempre funcionan ---
         dispatcher.register(Commands.literal("totemverdadero")
                 .requires(source -> source.hasPermission(2))
@@ -222,7 +251,34 @@ public class ProgressiveDifficultyEvents {
 
             if (!tamed && !baby && !named && !inBoat) {
                 event.setCanceled(true);
+                return;
             }
+        }
+
+        if (!event.loadedFromDisk()
+                && event.getEntity() instanceof Creeper creeper
+                && FeatureToggles.get().isEnabled(FeatureToggles.Feature.ELECTRIC_CREEPERS)) {
+            creeper.setPowered(true);
+        }
+
+        if (!event.loadedFromDisk()
+                && event.getEntity() instanceof IronGolem
+                && FeatureToggles.get().isEnabled(FeatureToggles.Feature.GOLEMS_REPLACED_BY_WARDENS)
+                && event.getLevel() instanceof ServerLevel serverLevel) {
+            event.setCanceled(true);
+            net.minecraft.world.entity.monster.Warden warden = EntityType.WARDEN.create(serverLevel);
+            if (warden != null) {
+                BlockPos pos = event.getEntity().blockPosition();
+                warden.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
+                serverLevel.addFreshEntity(warden);
+            }
+        }
+
+        if (!event.loadedFromDisk()
+                && event.getEntity() instanceof Villager villager
+                && villager.isBaby()
+                && FeatureToggles.get().isEnabled(FeatureToggles.Feature.NO_VILLAGER_BREEDING)) {
+            event.setCanceled(true);
         }
     }
 
@@ -262,6 +318,44 @@ public class ProgressiveDifficultyEvents {
             target.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 100, 0));
             shuffleHotbar(target);
         }
+
+        if (attacker instanceof Player attackerPlayer
+                && attackerPlayer.getMainHandItem().is(com.giuli.progressivedifficulty.items.ModItems.INFERNAL_SWORD)) {
+            float newHealth = attackerPlayer.getHealth() + 1.0F;
+            if (newHealth <= attackerPlayer.getMaxHealth()) {
+                attackerPlayer.setHealth(newHealth);
+            }
+        }
+
+        if (attacker instanceof ServerPlayer attackerPlayer
+                && attackerPlayer.getMainHandItem().is(com.giuli.progressivedifficulty.items.ModItems.SPAWN_STICK)
+                && event.getEntity() instanceof ServerPlayer targetPlayer) {
+            event.setAmount(0.0F);
+            teleportToSpawn(targetPlayer);
+            attackerPlayer.displayClientMessage(Component.literal(
+                    "El jugador " + targetPlayer.getName().getString() + " ha sido teletransportado a su spawn."), false);
+        }
+    }
+
+    private static void teleportToSpawn(ServerPlayer targetPlayer) {
+        MinecraftServer server = targetPlayer.getServer();
+        if (server == null) {
+            return;
+        }
+
+        ServerLevel respawnLevel = targetPlayer.getRespawnDimension() != null
+                ? server.getLevel(targetPlayer.getRespawnDimension())
+                : null;
+        BlockPos respawnPos = targetPlayer.getRespawnPosition();
+
+        if (respawnLevel != null && respawnPos != null) {
+            targetPlayer.teleportTo(respawnLevel, respawnPos.getX() + 0.5D, respawnPos.getY(),
+                    respawnPos.getZ() + 0.5D, 0.0F, 0.0F);
+        } else {
+            ServerLevel overworld = server.overworld();
+            BlockPos spawn = overworld.getSharedSpawnPos();
+            targetPlayer.teleportTo(overworld, spawn.getX() + 0.5D, spawn.getY(), spawn.getZ() + 0.5D, 0.0F, 0.0F);
+        }
     }
 
     private static void shuffleHotbar(LivingEntity target) {
@@ -299,6 +393,33 @@ public class ProgressiveDifficultyEvents {
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.DMG_BUTTONS)) {
             player.hurt(player.damageSources().generic(), 1.0F);
         }
+
+        if (state.getBlock() instanceof DoorBlock
+                && FeatureToggles.get().isEnabled(FeatureToggles.Feature.DOORS_INSTAKILL)
+                && isSurvivalAndNotOp(player)) {
+            player.hurt(player.damageSources().generic(), 50000.0F);
+        }
+
+        if (state.getBlock() instanceof ButtonBlock
+                && FeatureToggles.get().isEnabled(FeatureToggles.Feature.BUTTONS_INSTAKILL)
+                && isSurvivalAndNotOp(player)) {
+            player.hurt(player.damageSources().generic(), 50000.0F);
+        }
+    }
+
+    /**
+     * Mirrors the dedsafio plugin's bypass rule: only applies to players in
+     * survival mode who are not server operators.
+     */
+    private static boolean isSurvivalAndNotOp(Player player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return false;
+        }
+        if (serverPlayer.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) {
+            return false;
+        }
+        return serverPlayer.getServer() == null
+                || !serverPlayer.getServer().getPlayerList().isOp(serverPlayer.getGameProfile());
     }
 
     @SubscribeEvent
@@ -381,6 +502,53 @@ public class ProgressiveDifficultyEvents {
                             : " uso un Totem de la Inmortalidad, pero fallo."));
             serverLevel.getServer().getPlayerList().broadcastSystemMessage(message, false);
         }
+    }
+
+    @SubscribeEvent
+    public void onTravelToDimension(EntityTravelToDimensionEvent event) {
+        if (!FeatureToggles.get().isEnabled(FeatureToggles.Feature.DISABLE_NETHER)) {
+            return;
+        }
+        if (!event.getDimension().equals(Level.NETHER)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        if (event.getEntity() instanceof Player player) {
+            player.displayClientMessage(
+                    Component.literal("El Nether esta desactivado en este servidor."), true);
+        }
+    }
+
+    @SubscribeEvent
+    public void onEnderPearlTeleport(EntityTeleportEvent.EnderPearl event) {
+        if (!FeatureToggles.get().isEnabled(FeatureToggles.Feature.ENDERPEARL_HALF_HEALTH)) {
+            return;
+        }
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (player.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) {
+            return;
+        }
+
+        event.setAttackDamage(0.0F);
+        player.setHealth(player.getHealth() / 2.0F);
+    }
+
+    @SubscribeEvent
+    public void onLivingDrops(LivingDropsEvent event) {
+        if (!FeatureToggles.get().isEnabled(FeatureToggles.Feature.PIGLINS_DROP_NUGGETS)) {
+            return;
+        }
+        if (!(event.getEntity() instanceof Piglin piglin)) {
+            return;
+        }
+
+        int amount = 3 + RANDOM.nextInt(3);
+        ItemEntity nuggets = new ItemEntity(piglin.level(), piglin.getX(), piglin.getY(), piglin.getZ(),
+                new ItemStack(Items.GOLD_NUGGET, amount));
+        event.getDrops().add(nuggets);
     }
 
     private static int show(CommandSourceStack source) {

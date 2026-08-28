@@ -35,6 +35,39 @@ Requieren permisos de operador nivel 2. Cada comando activa/desactiva el peligro
 /totemdebil       - Los totems normales solo funcionan el 50% de las veces.
 ```
 
+## Portado del plugin dedsafio (events/changes)
+
+```mcfunction
+/doorsinstakill       - Abrir una puerta mata al instante (solo en survival, los ops no mueren).
+/buttonsinstakill     - Usar un boton mata al instante (solo en survival, los ops no mueren).
+/disablenether        - Cancela el viaje al Nether por portal.
+/electriccreepers     - Los creepers siempre spawnean cargados (electricos).
+/novillagerbreeding   - Evita que nazcan aldeanos bebe por reproduccion.
+/enderpearlhalfhealth - Usar una enderperla te quita la mitad de tu vida actual (en survival).
+/piglinsnuggets       - Los piglins sueltan 3-5 pepitas de oro al morir.
+/golemswardens        - Los golems de hierro se reemplazan por wardens al spawnear.
+```
+
+Nota: `SpiderWebsOnHit` y `BreakWebsSpawnPoisonousSpiders` del plugin no se portaron por separado porque son identicas a `/fiebretejedora` y `/fiebretaracnida`, que ya existian en este mod.
+
+## Items custom (portados del plugin dedsafio)
+
+Todavia no estan en una pestaña creativa ni en un comando `/items` (eso viene con el sistema de menus, en otra sesion). Por ahora se consiguen con `/give`:
+
+```mcfunction
+/give @s progressivedifficulty:sunblock
+/give @s progressivedifficulty:ghost_sword
+/give @s progressivedifficulty:blue_capsule
+/give @s progressivedifficulty:fork                    - clic derecho: mensaje "aun no disponible" (igual que el plugin).
+/give @s progressivedifficulty:spoon                    - idem fork.
+/give @s progressivedifficulty:infernal_sword           - cada golpe conectado cura +1 corazon a quien la usa.
+/give @s progressivedifficulty:ender_bag                - clic derecho: abre tu ender chest desde cualquier lado.
+/give @s progressivedifficulty:spawn_stick              - golpear a un jugador lo teletransporta a su punto de spawn (sin danio).
+/give @s progressivedifficulty:portable_golden_anvil    - clic derecho: repara toda tu armadura puesta y se consume 1 unidad.
+```
+
+Quedan pendientes para una proxima sesion: `marker_item` (herramienta de marcacion de posiciones) y `resurrection_spoon` (dependen del sistema de fogata/resurreccion y base de datos de usuarios, que todavia no se portaron).
+
 ## Totems verdaderos
 
 ```mcfunction
