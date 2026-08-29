@@ -266,8 +266,14 @@ public class ProgressiveDifficultyEvents {
 
         if (!event.loadedFromDisk()
                 && event.getEntity() instanceof Creeper creeper
-                && FeatureToggles.get().isEnabled(FeatureToggles.Feature.ELECTRIC_CREEPERS)) {
-            creeper.setPowered(true);
+                && FeatureToggles.get().isEnabled(FeatureToggles.Feature.ELECTRIC_CREEPERS)
+                && event.getLevel() instanceof ServerLevel serverLevel) {
+            net.minecraft.world.entity.LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(serverLevel);
+            if (bolt != null) {
+                BlockPos pos = creeper.blockPosition();
+                bolt.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
+                serverLevel.addFreshEntity(bolt);
+            }
         }
 
         if (!event.loadedFromDisk()
@@ -275,7 +281,7 @@ public class ProgressiveDifficultyEvents {
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.GOLEMS_REPLACED_BY_WARDENS)
                 && event.getLevel() instanceof ServerLevel serverLevel) {
             event.setCanceled(true);
-            net.minecraft.world.entity.monster.Warden warden = EntityType.WARDEN.create(serverLevel);
+            net.minecraft.world.entity.monster.warden.Warden warden = EntityType.WARDEN.create(serverLevel);
             if (warden != null) {
                 BlockPos pos = event.getEntity().blockPosition();
                 warden.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);

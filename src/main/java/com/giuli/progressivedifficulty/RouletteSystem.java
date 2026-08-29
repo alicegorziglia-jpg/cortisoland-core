@@ -203,7 +203,7 @@ public class RouletteSystem {
         }
     }
 
-    private static Component legacyToComponent(String legacyText) {
+    private static MutableComponent legacyToComponent(String legacyText) {
         return Component.literal(legacyText.replace('&', '\u00a7'));
     }
 }
