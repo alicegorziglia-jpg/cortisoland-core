@@ -85,6 +85,7 @@ public class ProgressiveDifficultyEvents {
     public void onServerStarted(ServerStartedEvent event) {
         DifficultyState.get().load(event.getServer());
         FeatureToggles.get().load(event.getServer());
+        ModConfigStore.get().load(event.getServer());
         applyToLoadedEnemies(event.getServer());
     }
 
@@ -92,6 +93,7 @@ public class ProgressiveDifficultyEvents {
     public void onServerStopping(ServerStoppingEvent event) {
         DifficultyState.get().save(event.getServer());
         FeatureToggles.get().save(event.getServer());
+        ModConfigStore.get().save(event.getServer());
     }
 
     @SubscribeEvent
@@ -196,11 +198,109 @@ public class ProgressiveDifficultyEvents {
 
         // --- Ruleta ---
         RouletteSystem.register(dispatcher);
+
+        // --- Timers con boss bar, horario de apertura/cierre, menu de items ---
+        BossBarSystem.register(dispatcher);
+        ServerScheduleSystem.register(dispatcher);
+        ItemsMenuSystem.register(dispatcher);
+
+        // --- /eon: anuncio formateado ---
+        dispatcher.register(Commands.literal("eon")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.argument("mensaje", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                        .executes(context -> {
+                            String text = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "mensaje");
+                            MinecraftServer server = context.getSource().getServer();
+                            Component line1 = Component.literal("\u25b6 Eon:").withStyle(
+                                    net.minecraft.ChatFormatting.GREEN, net.minecraft.ChatFormatting.BOLD);
+                            Component line3 = Component.literal(text);
+                            server.getPlayerList().broadcastSystemMessage(line1, false);
+                            server.getPlayerList().broadcastSystemMessage(Component.empty(), false);
+                            server.getPlayerList().broadcastSystemMessage(line3, false);
+                            return 1;
+                        })));
+
+        // --- /config: valores libres persistidos ---
+        dispatcher.register(Commands.literal("config")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("set")
+                        .then(Commands.argument("clave", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                .then(Commands.argument("valor", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                        .executes(context -> {
+                                            String key = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "clave");
+                                            String value = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "valor");
+                                            ModConfigStore.get().set(key, value);
+                                            ModConfigStore.get().save(context.getSource().getServer());
+                                            context.getSource().sendSuccess(() -> Component.literal(
+                                                    "Guardado " + key + " = " + value), true);
+                                            return 1;
+                                        }))))
+                .then(Commands.literal("get")
+                        .then(Commands.argument("clave", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                .executes(context -> {
+                                    String key = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "clave");
+                                    String value = ModConfigStore.get().get(key);
+                                    context.getSource().sendSuccess(() -> Component.literal(
+                                            key + " = " + (value == null ? "(sin valor)" : value)), false);
+                                    return 1;
+                                }))));
+
+        // --- /dtp: teletransporte con pantalla blanca ---
+        dispatcher.register(Commands.literal("dtp")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.argument("jugadores", net.minecraft.commands.arguments.EntityArgument.players())
+                        .then(Commands.argument("pos", net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .then(Commands.argument("fadeIn", IntegerArgumentType.integer(0))
+                                        .then(Commands.argument("stay", IntegerArgumentType.integer(0))
+                                                .then(Commands.argument("fadeOut", IntegerArgumentType.integer(0))
+                                                        .executes(context -> {
+                                                            var players = net.minecraft.commands.arguments.EntityArgument
+                                                                    .getPlayers(context, "jugadores");
+                                                            net.minecraft.core.BlockPos pos = net.minecraft.commands.arguments.coordinates
+                                                                    .BlockPosArgument.getBlockPos(context, "pos");
+                                                            int fadeIn = IntegerArgumentType.getInteger(context, "fadeIn");
+                                                            int stay = IntegerArgumentType.getInteger(context, "stay");
+                                                            int fadeOut = IntegerArgumentType.getInteger(context, "fadeOut");
+                                                            return dtp(context.getSource(), players, pos, fadeIn, stay, fadeOut);
+                                                        })))))));
     }
+
+    private static int dtp(CommandSourceStack source, java.util.Collection<ServerPlayer> players,
+            net.minecraft.core.BlockPos pos, int fadeIn, int stay, int fadeOut) {
+        if (players.isEmpty()) {
+            source.sendFailure(Component.literal("No se encontraron jugadores."));
+            return 0;
+        }
+
+        for (ServerPlayer player : players) {
+            player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(
+                    fadeIn, stay, fadeOut));
+            player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                    Component.literal("\u2588\u2588\u2588\u2588\u2588\u2588").withStyle(net.minecraft.ChatFormatting.WHITE)));
+
+            DelayedTaskScheduler.schedule(Math.max(stay + fadeOut, 1), () -> {
+                if (player.level() instanceof ServerLevel serverLevel) {
+                    player.teleportTo(serverLevel, pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D,
+                            player.getYRot(), player.getXRot());
+                }
+            });
+        }
+
+        source.sendSuccess(() -> Component.literal("Teletransportando " + players.size() + " jugador(es)."), true);
+        return players.size();
+    }
+
+    private int scheduleCheckCounter = 0;
 
     @SubscribeEvent
     public void onServerTick(ServerTickEvent.Post event) {
         DelayedTaskScheduler.tick();
+
+        scheduleCheckCounter++;
+        if (scheduleCheckCounter >= 1200) { // once per in-game minute
+            scheduleCheckCounter = 0;
+            ServerScheduleSystem.checkSchedule(event.getServer());
+        }
     }
 
     private static void registerToggleCommand(CommandDispatcher<CommandSourceStack> dispatcher, String name,
@@ -216,6 +316,8 @@ public class ProgressiveDifficultyEvents {
                 }));
     }
 
+    private static final int TOTEM_NUTRIA_MODEL_DATA = 1000424;
+
     private static int giveGuaranteedTotem(CommandSourceStack source, int amount) {
         if (!(source.getEntity() instanceof ServerPlayer player)) {
             source.sendFailure(Component.literal("Este comando solo puede ser ejecutado por un jugador."));
@@ -226,12 +328,14 @@ public class ProgressiveDifficultyEvents {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean(GUARANTEED_TOTEM_KEY, true);
         totem.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        totem.set(DataComponents.CUSTOM_NAME, Component.literal("Totem Verdadero")
+        totem.set(DataComponents.CUSTOM_MODEL_DATA,
+                new net.minecraft.world.item.component.CustomModelData(TOTEM_NUTRIA_MODEL_DATA));
+        totem.set(DataComponents.CUSTOM_NAME, Component.literal("Totem Nutria")
                 .withStyle(style -> style.withColor(ChatFormatting.LIGHT_PURPLE).withItalic(false)));
 
         player.getInventory().placeItemBackInInventory(totem);
         source.sendSuccess(() -> Component.literal(
-                "Recibiste " + amount + " Totem(es) Verdadero(s): siempre funcionan al 100%."), true);
+                "Recibiste " + amount + " Totem(es) Nutria: siempre funcionan al 100%."), true);
         return amount;
     }
 
@@ -411,14 +515,16 @@ public class ProgressiveDifficultyEvents {
 
         if (state.getBlock() instanceof DoorBlock
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.DOORS_INSTAKILL)
-                && isSurvivalAndNotOp(player)) {
-            player.hurt(player.damageSources().generic(), 50000.0F);
+                && isSurvivalAndNotOp(player)
+                && event.getLevel() instanceof ServerLevel serverLevel) {
+            player.kill(serverLevel);
         }
 
         if (state.getBlock() instanceof ButtonBlock
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.BUTTONS_INSTAKILL)
-                && isSurvivalAndNotOp(player)) {
-            player.hurt(player.damageSources().generic(), 50000.0F);
+                && isSurvivalAndNotOp(player)
+                && event.getLevel() instanceof ServerLevel serverLevel) {
+            player.kill(serverLevel);
         }
     }
 

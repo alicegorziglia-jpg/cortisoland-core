@@ -91,13 +91,50 @@ Ejemplo: `/ruleta actionbar orange @a Sube el nivel de dificultad a 3`
 
 **No incluido en el pack alpha que me pasaste** (asi que sigue con fallback de texto plano): las animaciones "Reviil" y "Nutria" (la segunda etapa de los colores rojo/rosa) y la textura real de `ghost_sword`. Si en algun momento tenes esos frames, los sumamos igual.
 
+## Comandos sueltos portados esta sesion
+
+```mcfunction
+/eon <mensaje>
+```
+Anuncio formateado a todo el server (equivalente a `/eon` del plugin).
+
+```mcfunction
+/config set <clave> <valor>
+/config get <clave>
+```
+Guarda/lee valores de texto libres, persistidos por mundo (para lo que necesites mas adelante, no tiene claves fijas).
+
+```mcfunction
+/dtp <jugadores> <x> <y> <z> <fadeIn> <stay> <fadeOut>
+```
+Flash de pantalla blanca (titulo) y luego teletransporta a los jugadores a esa posicion tras `stay + fadeOut` ticks. Solo dentro de la misma dimension del que ejecuta el comando (no cruza dimensiones).
+
+```mcfunction
+/timer add <segundos> <color> <estilo> <nombre>
+/timer remove <nombre>
+```
+Boss bar de cuenta regresiva visible para todos los jugadores conectados. `color`: red/pink/blue/green/yellow/purple/white. `estilo`: solid (por defecto), 6/10/12/20 (segmentado).
+
+```mcfunction
+/horario activar
+/horario desactivar
+/horario abrir <HH:MM>
+/horario cerrar <HH:MM>
+```
+Puerto de TimeController: activa un horario de apertura/cierre del server. En la hora de cierre, expulsa a los jugadores sin op y activa la whitelist, con una boss bar de cuenta regresiva en los ultimos 5 minutos. Se revisa una vez por minuto de juego (1200 ticks).
+
+```mcfunction
+/items
+```
+Abre un menu tipo cofre con los items custom del mod - tomá el que quieras, se genera una copia fresca cada vez que se ejecuta el comando (no "se acaba" el catalogo).
+
 ## Totems verdaderos
 
 ```mcfunction
 /totemverdadero [cantidad]
 ```
 
-Entrega al jugador que ejecuta el comando totems especiales que **siempre** funcionan al 100%, incluso con `/totemdebil` activado. Se identifican por su nombre "Totem Verdadero".
+Entrega al jugador que ejecuta el comando totems especiales que **siempre** funcionan al 100%, incluso con `/totemdebil` activado. Se llaman "Totem Nutria" y tienen su propia textura (un otter/nutria) via Custom Model Data sobre el totem de la inmortalidad vanilla - el modelo override vive en `assets/minecraft/models/item/totem_of_undying.json` dentro del mod (es la unica excepcion a usar solo el namespace propio: hace falta para reskinnear un item vanilla especifico).
 
 ## Valores por defecto
 
