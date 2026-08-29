@@ -68,6 +68,29 @@ Todavia no estan en una pestaña creativa ni en un comando `/items` (eso viene c
 
 Quedan pendientes para una proxima sesion: `marker_item` (herramienta de marcacion de posiciones) y `resurrection_spoon` (dependen del sistema de fogata/resurreccion y base de datos de usuarios, que todavia no se portaron).
 
+Las texturas de estos 8 items son placeholders generados a mano (pixel art simple 16x16), no el arte original del plugin. Reemplazalas cuando quieras en `src/main/resources/assets/progressivedifficulty/textures/item/`.
+
+## Ruleta (portado del plugin dedsafio)
+
+```mcfunction
+/ruleta <tipo> <color> <jugadores> <mensaje...>
+```
+
+- `tipo`: `title`, `subtitle`, `actionbar` o `sidebar` (sidebar cae a actionbar, no se implemento un scoreboard real).
+- `color`: `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`, `cyan`.
+- `jugadores`: selector de entidades, ej. `@a`, `NombreJugador`.
+- `mensaje`: el texto final que se revela (todo lo que sigue, greedy).
+
+Ejemplo: `/ruleta actionbar orange @a Sube el nivel de dificultad a 3`
+
+**Importante:** este comando ahora usa los frames REALES de tu resourcepack (`dedsafio-textures-1_0_0-alpha`), copiados dentro del propio mod bajo una fuente propia `progressivedifficulty:ruleta` (así los jugadores no necesitan instalar ningun resourcepack aparte, viene incluido en el mod). Se porto:
+- Los 8 giros de color (blue/cyan/green/orange/pink/purple/red/yellow), fotograma por fotograma, al mismo ritmo original (~1 frame por tick).
+- Los iconos `{r-color}` de tu `config.yml` (fuente `progressivedifficulty:icons`).
+- Los sonidos `ruleta.ogg` y `muerte.ogg`, empaquetados como `progressivedifficulty:ruleta` / `progressivedifficulty:muerte`.
+- Las texturas reales de los items (`sunblock`, `fork`, `spoon`, `blue_capsule`, `infernal_sword`, `ender_bag`, `portable_golden_anvil`, y `resurrection_spoon` para mas adelante).
+
+**No incluido en el pack alpha que me pasaste** (asi que sigue con fallback de texto plano): las animaciones "Reviil" y "Nutria" (la segunda etapa de los colores rojo/rosa) y la textura real de `ghost_sword`. Si en algun momento tenes esos frames, los sumamos igual.
+
 ## Totems verdaderos
 
 ```mcfunction

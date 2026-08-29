@@ -1,0 +1,8 @@
+{
+  "ruleta": {
+    "sounds": ["progressivedifficulty:ruleta"]
+  },
+  "muerte": {
+    "sounds": ["progressivedifficulty:muerte"]
+  }
+}

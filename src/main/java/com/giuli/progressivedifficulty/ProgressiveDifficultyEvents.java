@@ -40,7 +40,6 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.entity.monster.piglin.Piglin;
-import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -69,6 +68,7 @@ import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 
 public class ProgressiveDifficultyEvents {
@@ -193,6 +193,14 @@ public class ProgressiveDifficultyEvents {
                 .then(Commands.argument("cantidad", IntegerArgumentType.integer(1, 64))
                         .executes(context -> giveGuaranteedTotem(context.getSource(),
                                 IntegerArgumentType.getInteger(context, "cantidad")))));
+
+        // --- Ruleta ---
+        RouletteSystem.register(dispatcher);
+    }
+
+    @SubscribeEvent
+    public void onServerTick(ServerTickEvent.Post event) {
+        DelayedTaskScheduler.tick();
     }
 
     private static void registerToggleCommand(CommandDispatcher<CommandSourceStack> dispatcher, String name,
@@ -259,12 +267,7 @@ public class ProgressiveDifficultyEvents {
         if (!event.loadedFromDisk()
                 && event.getEntity() instanceof Creeper creeper
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.ELECTRIC_CREEPERS)) {
-            // NOTA: se reemplazo creeper.setPowered(true) (metodo eliminado en versiones
-            // recientes de Minecraft) por la carga del tag NBT "powered", que es el mismo
-            // mecanismo estable que usa internamente el comando /summon.
-            CompoundTag creeperTag = new CompoundTag();
-            creeperTag.putBoolean("powered", true);
-            creeper.load(creeperTag);
+            creeper.setPowered(true);
         }
 
         if (!event.loadedFromDisk()
@@ -272,7 +275,7 @@ public class ProgressiveDifficultyEvents {
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.GOLEMS_REPLACED_BY_WARDENS)
                 && event.getLevel() instanceof ServerLevel serverLevel) {
             event.setCanceled(true);
-            Warden warden = EntityType.WARDEN.create(serverLevel);
+            net.minecraft.world.entity.monster.Warden warden = EntityType.WARDEN.create(serverLevel);
             if (warden != null) {
                 BlockPos pos = event.getEntity().blockPosition();
                 warden.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);

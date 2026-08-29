@@ -1,3 +1,12 @@
 {
-  "modmenu.nameTranslation.progressivedifficulty": "Dificultad Progresiva"
+  "modmenu.nameTranslation.progressivedifficulty": "Dificultad Progresiva",
+
+  "item.progressivedifficulty.sunblock": "Bloqueador Solar",
+  "item.progressivedifficulty.ghost_sword": "Espada Fantasma",
+  "item.progressivedifficulty.blue_capsule": "Capsula Azul",
+  "item.progressivedifficulty.fork": "Tenedor",
+  "item.progressivedifficulty.spoon": "Cuchara",
+  "item.progressivedifficulty.infernal_sword": "Espada Infernal",
+  "item.progressivedifficulty.ender_bag": "Bolsa del Ender",
+  "item.progressivedifficulty.portable_golden_anvil": "Yunque Dorado Portatil"
 }
