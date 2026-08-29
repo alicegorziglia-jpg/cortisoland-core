@@ -90,7 +90,7 @@ public class RouletteSystem {
                                                             EntityArgument.getPlayers(context, "jugadores");
                                                     String message = StringArgumentType.getString(context, "mensaje");
                                                     return run(context.getSource(), type, colorKey, players, message);
-                                                })))));
+                                                }))))));
     }
 
     private static int run(CommandSourceStack source, String type, String colorKey,
