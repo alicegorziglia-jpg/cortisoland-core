@@ -515,16 +515,14 @@ public class ProgressiveDifficultyEvents {
 
         if (state.getBlock() instanceof DoorBlock
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.DOORS_INSTAKILL)
-                && isSurvivalAndNotOp(player)
-                && event.getLevel() instanceof ServerLevel serverLevel) {
-            player.kill(serverLevel);
+                && isSurvivalAndNotOp(player)) {
+            player.kill();
         }
 
         if (state.getBlock() instanceof ButtonBlock
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.BUTTONS_INSTAKILL)
-                && isSurvivalAndNotOp(player)
-                && event.getLevel() instanceof ServerLevel serverLevel) {
-            player.kill(serverLevel);
+                && isSurvivalAndNotOp(player)) {
+            player.kill();
         }
     }
 
