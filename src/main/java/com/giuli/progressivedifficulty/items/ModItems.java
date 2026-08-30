@@ -27,8 +27,7 @@ public class ModItems {
             ITEMS.register("blue_capsule", () -> new Item(new Item.Properties()));
 
     public static final DeferredHolder<Item, Item> FORK =
-            ITEMS.register("fork", () -> new PlaceholderMessageItem(new Item.Properties(),
-                    "Este item aun no se encuentra disponible"));
+            ITEMS.register("fork", () -> new Item(new Item.Properties()));
 
     public static final DeferredHolder<Item, Item> SPOON =
             ITEMS.register("spoon", () -> new PlaceholderMessageItem(new Item.Properties(),
