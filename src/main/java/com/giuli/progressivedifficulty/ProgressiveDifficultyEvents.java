@@ -419,6 +419,7 @@ public class ProgressiveDifficultyEvents {
             if (warden != null) {
                 BlockPos pos = event.getEntity().blockPosition();
                 warden.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
+                warden.setPersistenceRequired();
                 serverLevel.addFreshEntity(warden);
             }
         }
@@ -618,6 +619,7 @@ public class ProgressiveDifficultyEvents {
         if (caveSpider != null) {
             BlockPos pos = event.getPos();
             caveSpider.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
+            caveSpider.setPersistenceRequired();
             serverLevel.addFreshEntity(caveSpider);
         }
     }
