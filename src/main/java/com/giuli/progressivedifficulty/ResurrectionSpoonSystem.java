@@ -4,43 +4,31 @@ import java.util.List;
 import java.util.UUID;
 
 import com.giuli.progressivedifficulty.items.ModItems;
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 /**
  * Port of ResurrectionSpoonItem's onRightClick + FogataMenu's revive click
- * handler. Simplified: instead of a paginated player-head GUI, right
- * clicking the spoon inside the fogata bounds (with a soul) lists every
- * dead player as a clickable chat line - clicking a name runs the internal
- * revive command. Functionally the same outcome (pick a dead player, revive
- * them, spend the spoon), much lower risk than building a custom container
- * menu with skull rendering and pagination from scratch.
+ * handler, plus the fork as a soul-free equivalent (per request: "el tenedor
+ * tiene casi las mismas funciones que la cuchara" - same revival flow, minus
+ * the soul cost). Opens a real player-head menu (ReviveMenu) - clicking a
+ * head revives that player, consuming the triggering item and (for the
+ * spoon only) a soul.
  */
 public class ResurrectionSpoonSystem {
     ResurrectionSpoonSystem() {
     }
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        // Hidden internal command the clickable chat entries run - not gated by
-        // permission since any player holding a spoon may use it, but it
-        // re-validates everything itself before doing anything.
-        dispatcher.register(Commands.literal("cortisoland_revivir_interno")
-                .then(Commands.argument("uuid", StringArgumentType.word())
-                        .then(Commands.argument("nombre", StringArgumentType.word())
-                                .executes(context -> confirmRevive(context.getSource(),
-                                        UUID.fromString(StringArgumentType.getString(context, "uuid")),
-                                        StringArgumentType.getString(context, "nombre"))))));
+    public static void register(com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack> dispatcher) {
+        // Nothing to register as a command anymore - revival happens entirely
+        // through clicking a head in the menu now.
     }
 
     @net.neoforged.bus.api.SubscribeEvent
@@ -48,10 +36,7 @@ public class ResurrectionSpoonSystem {
         if (event.getLevel().isClientSide()) {
             return;
         }
-        if (!event.getItemStack().is(ModItems.RESURRECTION_SPOON)) {
-            return;
-        }
-        attemptOpen(event.getEntity(), event.getEntity().blockPosition());
+        handle(event.getEntity(), event.getEntity().blockPosition(), event.getHand());
     }
 
     @net.neoforged.bus.api.SubscribeEvent
@@ -59,14 +44,22 @@ public class ResurrectionSpoonSystem {
         if (event.getLevel().isClientSide()) {
             return;
         }
-        if (!event.getEntity().getMainHandItem().is(ModItems.RESURRECTION_SPOON)
-                && !event.getEntity().getOffhandItem().is(ModItems.RESURRECTION_SPOON)) {
-            return;
-        }
-        attemptOpen(event.getEntity(), event.getPos());
+        handle(event.getEntity(), event.getPos(), event.getHand());
     }
 
-    private static void attemptOpen(Player player, net.minecraft.core.BlockPos targetPos) {
+    private static void handle(Player player, net.minecraft.core.BlockPos targetPos, InteractionHand hand) {
+        ItemStack held = player.getItemInHand(hand);
+        boolean isSpoon = held.is(ModItems.RESURRECTION_SPOON);
+        boolean isFork = held.is(ModItems.FORK);
+        if (!isSpoon && !isFork) {
+            return;
+        }
+
+        attemptOpen(player, targetPos, hand, isSpoon);
+    }
+
+    private static void attemptOpen(Player player, net.minecraft.core.BlockPos targetPos,
+            InteractionHand hand, boolean consumesSoul) {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return;
         }
@@ -77,7 +70,7 @@ public class ResurrectionSpoonSystem {
             return;
         }
 
-        if (!SoulSystem.hasSoul(player.getUUID())) {
+        if (consumesSoul && !SoulSystem.hasSoul(player.getUUID())) {
             player.displayClientMessage(Component.literal("Debes tener una alma para poder resucitar a un jugador.")
                     .withStyle(ChatFormatting.RED), true);
             return;
@@ -92,67 +85,53 @@ public class ResurrectionSpoonSystem {
             return;
         }
 
-        player.sendSystemMessage(Component.literal("Jugadores muertos - click para revivir:")
-                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-        for (ServerPlayer dead : deadPlayers) {
-            MutableComponent line = Component.literal("  \u25b8 " + dead.getName().getString())
-                    .withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
-                                    "/cortisoland_revivir_interno " + dead.getUUID() + " " + dead.getName().getString())));
-            player.sendSystemMessage(line);
-        }
+        serverPlayer.openMenu(new SimpleMenuProvider(
+                (windowId, inventory, p) -> ReviveMenu.create(windowId, inventory, serverPlayer, deadPlayers, consumesSoul, hand),
+                Component.literal("Revivir jugador")));
     }
 
-    private static int confirmRevive(CommandSourceStack source, UUID targetUuid, String targetName) {
-        if (!(source.getEntity() instanceof ServerPlayer player)) {
-            return 0;
-        }
-
-        if (targetUuid.equals(player.getUUID())) {
-            source.sendFailure(Component.literal("No podes revivirte a vos mismo."));
-            return 0;
-        }
-
-        if (!FogataSystem.isWithinFogataBounds(player.blockPosition())) {
-            source.sendFailure(Component.literal("Ya no estas cerca de la fogata."));
-            return 0;
-        }
-
-        if (!SoulSystem.hasSoul(player.getUUID())) {
-            source.sendFailure(Component.literal("Ya no tenes alma."));
-            return 0;
+    /** Called by ReviveMenu when a head is clicked. */
+    public static void performRevive(ServerPlayer viewer, UUID targetUuid, boolean consumesSoul, InteractionHand hand) {
+        if (targetUuid.equals(viewer.getUUID())) {
+            viewer.displayClientMessage(Component.literal("No podes revivirte a vos mismo.")
+                    .withStyle(ChatFormatting.RED), true);
+            return;
         }
 
         if (!DeathSystem.isDead(targetUuid)) {
-            source.sendFailure(Component.literal(targetName + " ya no esta muerto."));
-            return 0;
+            viewer.displayClientMessage(Component.literal("Ese jugador ya no esta muerto.")
+                    .withStyle(ChatFormatting.RED), true);
+            return;
         }
 
-        int spoonSlot = findSpoonSlot(player);
-        if (spoonSlot < 0) {
-            source.sendFailure(Component.literal("Debes tener una cuchara de resurreccion en tu inventario."));
-            return 0;
+        ItemStack held = viewer.getItemInHand(hand);
+        if (held.isEmpty() || !(held.is(ModItems.RESURRECTION_SPOON) || held.is(ModItems.FORK))) {
+            viewer.displayClientMessage(Component.literal("Ya no tenes el item necesario en la mano.")
+                    .withStyle(ChatFormatting.RED), true);
+            return;
         }
 
-        SoulSystem.set(player.getUUID(), false);
-        SoulSystem.save(source.getServer());
+        if (consumesSoul) {
+            if (!SoulSystem.hasSoul(viewer.getUUID())) {
+                viewer.displayClientMessage(Component.literal("Ya no tenes alma.")
+                        .withStyle(ChatFormatting.RED), true);
+                return;
+            }
+            SoulSystem.set(viewer.getUUID(), false);
+            SoulSystem.save(viewer.getServer());
+        }
 
         DeathSystem.reviveWithAlert(targetUuid);
-        DeathSystem.save(source.getServer());
+        DeathSystem.save(viewer.getServer());
 
-        ItemStack stack = player.getInventory().getItem(spoonSlot);
-        stack.shrink(1);
+        held.shrink(1);
 
-        source.sendSuccess(() -> Component.literal("Has revivido a " + targetName + "!"), false);
-        return 1;
-    }
-
-    private static int findSpoonSlot(ServerPlayer player) {
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            if (player.getInventory().getItem(i).is(ModItems.RESURRECTION_SPOON)) {
-                return i;
-            }
-        }
-        return -1;
+        String targetName = viewer.getServer().getPlayerList().getPlayers().stream()
+                .filter(p -> p.getUUID().equals(targetUuid))
+                .findFirst()
+                .map(p -> p.getName().getString())
+                .orElse("el jugador");
+        viewer.displayClientMessage(Component.literal("Has revivido a " + targetName + "!")
+                .withStyle(ChatFormatting.GREEN), false);
     }
 }
