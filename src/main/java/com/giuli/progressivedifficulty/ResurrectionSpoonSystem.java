@@ -28,7 +28,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
  * menu with skull rendering and pagination from scratch.
  */
 public class ResurrectionSpoonSystem {
-    private ResurrectionSpoonSystem() {
+    ResurrectionSpoonSystem() {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
