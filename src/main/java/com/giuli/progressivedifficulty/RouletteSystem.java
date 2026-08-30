@@ -28,9 +28,10 @@ import net.minecraft.sounds.SoundSource;
  * install is required by players.
  *
  * <p>Not ported: the "Reviil"/"Nutria" secondary animations (red/pink's
- * second stage) - the alpha texturepack we were given doesn't include those
- * frame sets (only blue/cyan/green/orange/pink/purple/red/yellow/muerte).
- * That second stage still uses a plain text fallback below.
+ * second stage in the original plugin) - the alpha texturepack we were
+ * given doesn't include those frame sets. Rather than fake a worse
+ * second stage with plain text + a repeated sound, red and pink now use
+ * the same single real-animation-then-reveal flow as every other color.
  */
 public class RouletteSystem {
     private static final ResourceLocation RULETA_FONT =
@@ -65,7 +66,7 @@ public class RouletteSystem {
     static {
         COLORS.put("green", new ColorInfo("verde", ChatFormatting.DARK_GREEN, "NOTIFICACIONES", "&a"));
         COLORS.put("blue", new ColorInfo("azul", ChatFormatting.DARK_BLUE, "NOTIFICACIONES", "&9"));
-        COLORS.put("red", new ColorInfo("roja", ChatFormatting.DARK_RED, "MOMENTO REVIL", "&c"));
+        COLORS.put("red", new ColorInfo("roja", ChatFormatting.DARK_RED, "MOMENTO CORTISOL", "&c"));
         COLORS.put("purple", new ColorInfo("morada", ChatFormatting.DARK_PURPLE, "DESCALIFICACION", "&d"));
         COLORS.put("orange", new ColorInfo("naranja", ChatFormatting.GOLD, "CAMBIO DE DIFICULTAD", "&e"));
         COLORS.put("pink", new ColorInfo("rosada", ChatFormatting.LIGHT_PURPLE, "MOMENTO NUTRIA", "&d"));
@@ -115,16 +116,7 @@ public class RouletteSystem {
 
         for (ServerPlayer player : players) {
             spin(player, type, colorKey);
-
-            if (colorKey.equals("red") || colorKey.equals("pink")) {
-                int secondDelayTicks = (colorKey.equals("red") ? 15 : 17) * 20;
-                DelayedTaskScheduler.schedule(15 * 20, () -> {
-                    showSpecialReveal(player, type, colorKey);
-                    DelayedTaskScheduler.schedule(secondDelayTicks, () -> revealMessage(player, colorKey, color, message));
-                });
-            } else {
-                DelayedTaskScheduler.schedule(15 * 20, () -> revealMessage(player, colorKey, color, message));
-            }
+            DelayedTaskScheduler.schedule(15 * 20, () -> revealMessage(player, colorKey, color, message));
         }
 
         source.sendSuccess(() -> Component.literal(
@@ -158,19 +150,7 @@ public class RouletteSystem {
         return Component.literal(String.valueOf((char) codepoint)).withStyle(style -> style.withFont(RULETA_FONT));
     }
 
-    /**
-     * Fallback for the plugin's red/pink second-stage "Reviil"/"Nutria" reveal:
-     * the alpha texturepack we ported from doesn't include those frame sets,
-     * so this stays as a plain colored title until those assets show up.
-     */
-    private static void showSpecialReveal(ServerPlayer player, String type, String colorKey) {
-        String title = colorKey.equals("red") ? "\u00a1MOMENTO REVIL!" : "\u00a1MOMENTO NUTRIA!";
-        ChatFormatting formatting = colorKey.equals("red") ? ChatFormatting.DARK_RED : ChatFormatting.LIGHT_PURPLE;
-        sendPositioned(player, type, Component.literal(title).withStyle(formatting, ChatFormatting.BOLD));
-        player.level().playSound(null, player.blockPosition(),
-                SoundEvent.createVariableRangeEvent(RULETA_SOUND), SoundSource.MASTER, 4.0F, 1.0F);
-    }
-
+    /** Builds and sends the final 3-line chat reveal for the chosen color. */
     private static void revealMessage(ServerPlayer player, String colorKey, ColorInfo color, String message) {
         Integer iconCodepoint = ICONS.get(colorKey);
         MutableComponent line1 = Component.empty();

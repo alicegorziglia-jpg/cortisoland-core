@@ -71,7 +71,14 @@ Todavia no estan en una pestaña creativa ni en un comando `/items` (eso viene c
 ```mcfunction
 /sistemamuerte
 ```
-Toggle (empieza desactivado). Con esto activado, cuando un jugador (no-op) muere: se lo pasa a modo espectador, queda marcado como "muerto" (persistido), se reproduce la animacion real de "muerte" (los 92 frames de tu resourcepack) a todos los jugadores con su sonido, y a los `/sistemamuerte`-segundos configurados (10 por defecto) se lo expulsa del servidor. Si intenta reconectarse mientras sigue muerto, se lo vuelve a expulsar automaticamente.
+Toggle (empieza desactivado). Con esto activado, un jugador (no-op) tiene **5 vidas** por defecto: las primeras 4 muertes son normales (solo un aviso de "te quedan N vidas", respawn de siempre). Recien en la 5ta muerte se aplica la eliminacion completa: espectador, marcado como "muerto" (persistido), y a los 10 segundos se lo expulsa. Si intenta reconectarse mientras sigue muerto, se lo vuelve a expulsar automaticamente.
+
+```mcfunction
+/vidas ver <jugador>
+/vidas resetear <jugador>
+/vidas maximo <cantidad>
+```
+`ver` muestra cuantas muertes lleva. `resetear` pone el contador de ese jugador en 0 (para pruebas). `maximo` cambia cuantas muertes hacen falta para ser eliminado (por defecto 5, aplica a todos).
 
 ```mcfunction
 /revive <jugador> <avisar:true|false>

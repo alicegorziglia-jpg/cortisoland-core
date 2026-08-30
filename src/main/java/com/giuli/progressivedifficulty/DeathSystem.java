@@ -33,10 +33,13 @@ import net.minecraft.world.level.storage.LevelResource;
 public class DeathSystem {
     private static final String FILE_NAME = "progressive_difficulty_death_system.properties";
     private static final int BAN_AFTER_SECONDS = 10;
+    private static final int DEFAULT_LIVES = 5;
 
     private static final Map<UUID, Boolean> DEAD = new HashMap<>();
     private static final Map<UUID, Boolean> ALERT_REVIVE = new HashMap<>();
     private static final Map<UUID, Integer> REVIVED_TIMES = new HashMap<>();
+    private static final Map<UUID, Integer> DEATH_COUNT = new HashMap<>();
+    private static int livesBeforeElimination = DEFAULT_LIVES;
 
     private DeathSystem() {
     }
@@ -52,6 +55,41 @@ public class DeathSystem {
                                         GameProfileArgument.getGameProfiles(context, "jugador")
                                                 .iterator().next().getName(),
                                         BoolArgumentType.getBool(context, "avisar"))))));
+
+        dispatcher.register(Commands.literal("vidas")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("ver")
+                        .then(Commands.argument("jugador", GameProfileArgument.gameProfile())
+                                .executes(context -> {
+                                    com.mojang.authlib.GameProfile profile = GameProfileArgument
+                                            .getGameProfiles(context, "jugador").iterator().next();
+                                    int count = getDeathCount(profile.getId());
+                                    context.getSource().sendSuccess(() -> Component.literal(
+                                            profile.getName() + ": " + count + "/" + livesBeforeElimination
+                                                    + " muertes"), false);
+                                    return count;
+                                })))
+                .then(Commands.literal("resetear")
+                        .then(Commands.argument("jugador", GameProfileArgument.gameProfile())
+                                .executes(context -> {
+                                    com.mojang.authlib.GameProfile profile = GameProfileArgument
+                                            .getGameProfiles(context, "jugador").iterator().next();
+                                    DEATH_COUNT.put(profile.getId(), 0);
+                                    save(context.getSource().getServer());
+                                    context.getSource().sendSuccess(() -> Component.literal(
+                                            "Contador de muertes de " + profile.getName() + " reiniciado a 0."), true);
+                                    return 1;
+                                })))
+                .then(Commands.literal("maximo")
+                        .then(Commands.argument("cantidad", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                .executes(context -> {
+                                    livesBeforeElimination = com.mojang.brigadier.arguments.IntegerArgumentType
+                                            .getInteger(context, "cantidad");
+                                    context.getSource().sendSuccess(() -> Component.literal(
+                                            "Ahora se necesitan " + livesBeforeElimination
+                                                    + " muertes para ser eliminado."), true);
+                                    return livesBeforeElimination;
+                                }))));
     }
 
     private static int revive(CommandSourceStack source, UUID uuid, String name, boolean alertUsers) {
@@ -80,6 +118,24 @@ public class DeathSystem {
         DEAD.put(uuid, false);
         ALERT_REVIVE.put(uuid, true);
         REVIVED_TIMES.merge(uuid, 1, Integer::sum);
+    }
+
+    /**
+     * Counts a death towards uuid's total and reports whether this death
+     * should trigger the full elimination flow (spectator/kick/animation).
+     * Returns true only once the configured threshold is reached or passed.
+     */
+    public static boolean registerDeathAndCheckElimination(UUID uuid) {
+        int newCount = DEATH_COUNT.merge(uuid, 1, Integer::sum);
+        return newCount >= livesBeforeElimination;
+    }
+
+    public static int getDeathCount(UUID uuid) {
+        return DEATH_COUNT.getOrDefault(uuid, 0);
+    }
+
+    public static int getLivesBeforeElimination() {
+        return livesBeforeElimination;
     }
 
     public static void markDead(ServerPlayer player) {
@@ -128,8 +184,18 @@ public class DeathSystem {
                     case "dead" -> DEAD.put(uuid, Boolean.parseBoolean(value));
                     case "alertRevive" -> ALERT_REVIVE.put(uuid, Boolean.parseBoolean(value));
                     case "revivedTimes" -> REVIVED_TIMES.put(uuid, Integer.parseInt(value));
+                    case "deathCount" -> DEATH_COUNT.put(uuid, Integer.parseInt(value));
                     default -> {
                     }
+                }
+            }
+
+            String livesValue = properties.getProperty("livesBeforeElimination");
+            if (livesValue != null) {
+                try {
+                    livesBeforeElimination = Integer.parseInt(livesValue);
+                } catch (NumberFormatException exception) {
+                    // keep default
                 }
             }
         } catch (IOException exception) {
@@ -143,6 +209,8 @@ public class DeathSystem {
         DEAD.forEach((uuid, value) -> properties.setProperty(uuid + ":dead", Boolean.toString(value)));
         ALERT_REVIVE.forEach((uuid, value) -> properties.setProperty(uuid + ":alertRevive", Boolean.toString(value)));
         REVIVED_TIMES.forEach((uuid, value) -> properties.setProperty(uuid + ":revivedTimes", Integer.toString(value)));
+        DEATH_COUNT.forEach((uuid, value) -> properties.setProperty(uuid + ":deathCount", Integer.toString(value)));
+        properties.setProperty("livesBeforeElimination", Integer.toString(livesBeforeElimination));
 
         try {
             Files.createDirectories(file.getParent());

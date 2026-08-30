@@ -696,6 +696,17 @@ public class ProgressiveDifficultyEvents {
             return;
         }
 
+        boolean eliminated = DeathSystem.registerDeathAndCheckElimination(player.getUUID());
+        DeathSystem.save(player.getServer());
+
+        if (!eliminated) {
+            int remaining = DeathSystem.getLivesBeforeElimination() - DeathSystem.getDeathCount(player.getUUID());
+            player.displayClientMessage(Component.literal(
+                    "Has muerto. Te quedan " + Math.max(remaining, 0) + " vida(s) antes de ser eliminado.")
+                    .withStyle(ChatFormatting.GOLD), false);
+            return;
+        }
+
         player.setGameMode(GameType.SPECTATOR);
         DeathSystem.markDead(player);
 
@@ -703,37 +714,11 @@ public class ProgressiveDifficultyEvents {
         player.getServer().getPlayerList().getPlayers().forEach(p ->
                 p.displayClientMessage(deathMessage.copy().withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD), true));
 
-        playDeathAnimation(player.getServer());
-
         DelayedTaskScheduler.schedule(DeathSystem.banAfterSeconds() * 20, () -> {
             if (player.connection != null) {
                 player.connection.disconnect(Component.literal("Has muerto. Alguien debe revivirte."));
             }
         });
-    }
-
-    private static void playDeathAnimation(net.minecraft.server.MinecraftServer server) {
-        int start = 0xE000 + 292 + 287 + 290 + 287 + 294 + 294 + 295 + 288; // muerte frames start right after yellow
-        int count = 92;
-        net.minecraft.resources.ResourceLocation font =
-                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(ProgressiveDifficultyMod.MOD_ID, "ruleta");
-
-        for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
-            for (int i = 0; i < count; i++) {
-                int codepoint = start + i;
-                DelayedTaskScheduler.schedule(Math.max(i, 1), () -> {
-                    viewer.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(0, 2, 0));
-                    viewer.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
-                            Component.literal(String.valueOf((char) codepoint)).withStyle(style -> style.withFont(font))));
-                });
-            }
-            DelayedTaskScheduler.schedule(count + 2, () -> viewer.connection.send(
-                    new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(Component.empty())));
-            viewer.level().playSound(null, viewer.blockPosition(),
-                    net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
-                            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(ProgressiveDifficultyMod.MOD_ID, "muerte")),
-                    net.minecraft.sounds.SoundSource.MASTER, 4.0F, 1.0F);
-        }
     }
 
     @SubscribeEvent
