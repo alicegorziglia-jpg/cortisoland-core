@@ -45,6 +45,8 @@ public class ItemsMenuSystem {
                 new ItemStack(ModItems.ENDER_BAG.get()),
                 new ItemStack(ModItems.SPAWN_STICK.get()),
                 new ItemStack(ModItems.PORTABLE_GOLDEN_ANVIL.get()),
+                new ItemStack(ModItems.MARKER_ITEM.get()),
+                new ItemStack(ModItems.RESURRECTION_SPOON.get()),
         };
         for (int i = 0; i < catalog.length; i++) {
             container.setItem(i, catalog[i]);

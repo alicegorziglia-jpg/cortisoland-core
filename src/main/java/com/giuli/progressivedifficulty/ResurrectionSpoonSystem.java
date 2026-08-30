@@ -51,15 +51,27 @@ public class ResurrectionSpoonSystem {
         if (!event.getItemStack().is(ModItems.RESURRECTION_SPOON)) {
             return;
         }
-        attemptOpen(event.getEntity());
+        attemptOpen(event.getEntity(), event.getEntity().blockPosition());
     }
 
-    private static void attemptOpen(Player player) {
+    @net.neoforged.bus.api.SubscribeEvent
+    public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide()) {
+            return;
+        }
+        if (!event.getEntity().getMainHandItem().is(ModItems.RESURRECTION_SPOON)
+                && !event.getEntity().getOffhandItem().is(ModItems.RESURRECTION_SPOON)) {
+            return;
+        }
+        attemptOpen(event.getEntity(), event.getPos());
+    }
+
+    private static void attemptOpen(Player player, net.minecraft.core.BlockPos targetPos) {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return;
         }
 
-        if (!FogataSystem.isWithinFogataBounds(player.blockPosition())) {
+        if (!FogataSystem.isWithinFogataBounds(targetPos)) {
             player.displayClientMessage(Component.literal("Debes estar cerca de la fogata de resurreccion.")
                     .withStyle(ChatFormatting.RED), true);
             return;
