@@ -45,4 +45,10 @@ public class ModItems {
 
     public static final DeferredHolder<Item, Item> PORTABLE_GOLDEN_ANVIL =
             ITEMS.register("portable_golden_anvil", () -> new PortableGoldenAnvilItem(new Item.Properties()));
+
+    public static final DeferredHolder<Item, Item> MARKER_ITEM =
+            ITEMS.register("marker_item", () -> new MarkerItem(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredHolder<Item, Item> RESURRECTION_SPOON =
+            ITEMS.register("resurrection_spoon", () -> new ResurrectionSpoonItem(new Item.Properties().rarity(Rarity.EPIC)));
 }

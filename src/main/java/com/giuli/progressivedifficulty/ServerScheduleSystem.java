@@ -37,11 +37,11 @@ public class ServerScheduleSystem {
                 .then(Commands.literal("activar").executes(context -> setEnabled(context.getSource(), true)))
                 .then(Commands.literal("desactivar").executes(context -> setEnabled(context.getSource(), false)))
                 .then(Commands.literal("abrir")
-                        .then(Commands.argument("hora", StringArgumentType.word())
+                        .then(Commands.argument("hora", StringArgumentType.string())
                                 .executes(context -> setOpen(context.getSource(),
                                         StringArgumentType.getString(context, "hora")))))
                 .then(Commands.literal("cerrar")
-                        .then(Commands.argument("hora", StringArgumentType.word())
+                        .then(Commands.argument("hora", StringArgumentType.string())
                                 .executes(context -> setClose(context.getSource(),
                                         StringArgumentType.getString(context, "hora"))))));
     }

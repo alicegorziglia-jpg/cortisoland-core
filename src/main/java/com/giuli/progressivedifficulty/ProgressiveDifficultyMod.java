@@ -18,6 +18,7 @@ public class ProgressiveDifficultyMod {
     public ProgressiveDifficultyMod(IEventBus modEventBus, ModContainer modContainer) {
         MaxHealthCapPatcher.apply();
         NeoForge.EVENT_BUS.register(new ProgressiveDifficultyEvents());
+        NeoForge.EVENT_BUS.register(new ResurrectionSpoonSystem());
         ModItems.ITEMS.register(modEventBus);
     }
 }

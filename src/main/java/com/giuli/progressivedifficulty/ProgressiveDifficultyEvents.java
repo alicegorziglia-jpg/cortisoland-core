@@ -60,9 +60,12 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityTeleportEvent;
 import net.neoforged.neoforge.event.entity.EntityTravelToDimensionEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingUseTotemEvent;
+import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -86,6 +89,8 @@ public class ProgressiveDifficultyEvents {
         DifficultyState.get().load(event.getServer());
         FeatureToggles.get().load(event.getServer());
         ModConfigStore.get().load(event.getServer());
+        SoulSystem.load(event.getServer());
+        DeathSystem.load(event.getServer());
         applyToLoadedEnemies(event.getServer());
     }
 
@@ -94,6 +99,8 @@ public class ProgressiveDifficultyEvents {
         DifficultyState.get().save(event.getServer());
         FeatureToggles.get().save(event.getServer());
         ModConfigStore.get().save(event.getServer());
+        SoulSystem.save(event.getServer());
+        DeathSystem.save(event.getServer());
     }
 
     @SubscribeEvent
@@ -203,6 +210,29 @@ public class ProgressiveDifficultyEvents {
         BossBarSystem.register(dispatcher);
         ServerScheduleSystem.register(dispatcher);
         ItemsMenuSystem.register(dispatcher);
+        SoulSystem.register(dispatcher);
+        DeathSystem.register(dispatcher);
+        FogataSystem.register(dispatcher);
+        ResurrectionSpoonSystem.register(dispatcher);
+
+        registerToggleCommand(dispatcher, "sistemamuerte", FeatureToggles.Feature.DEATH_SYSTEM,
+                "Sistema de eliminacion: morir te pone en espectador y te expulsa a los "
+                        + DeathSystem.banAfterSeconds() + "s, salvo que alguien te revive");
+
+        // --- /dedsafio: ayuda / version ---
+        dispatcher.register(Commands.literal("dedsafio")
+                .executes(context -> {
+                    context.getSource().sendSuccess(() -> Component.literal(
+                            "Cortisoland Core - portado del plugin dedsafio. Usa /dedsafio version "
+                                    + "para ver la version del mod."), false);
+                    return 1;
+                })
+                .then(Commands.literal("version")
+                        .executes(context -> {
+                            context.getSource().sendSuccess(() -> Component.literal(
+                                    "Cortisoland Core (progressivedifficulty)"), false);
+                            return 1;
+                        })));
 
         // --- /eon: anuncio formateado ---
         dispatcher.register(Commands.literal("eon")
@@ -524,6 +554,37 @@ public class ProgressiveDifficultyEvents {
                 && isSurvivalAndNotOp(player)) {
             player.kill();
         }
+
+        if (player.getMainHandItem().is(com.giuli.progressivedifficulty.items.ModItems.MARKER_ITEM)) {
+            event.setCanceled(true);
+            com.giuli.progressivedifficulty.items.MarkerItem.setPos2(player.getMainHandItem(), event.getPos());
+            player.displayClientMessage(Component.literal(
+                    "Segunda posicion definida en: " + event.getPos().getX() + ", "
+                            + event.getPos().getY() + ", " + event.getPos().getZ()), false);
+        }
+    }
+
+    @SubscribeEvent
+    public void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getLevel().isClientSide()) {
+            return;
+        }
+
+        Player player = event.getEntity();
+        if (player.getMainHandItem().is(com.giuli.progressivedifficulty.items.ModItems.MARKER_ITEM)) {
+            event.setCanceled(true);
+            com.giuli.progressivedifficulty.items.MarkerItem.setPos1(player.getMainHandItem(), event.getPos());
+            player.displayClientMessage(Component.literal(
+                    "Primera posicion definida en: " + event.getPos().getX() + ", "
+                            + event.getPos().getY() + ", " + event.getPos().getZ()), false);
+        }
+    }
+
+    @SubscribeEvent
+    public void onItemToss(ItemTossEvent event) {
+        if (event.getEntity().getItem().is(com.giuli.progressivedifficulty.items.ModItems.MARKER_ITEM)) {
+            event.setCanceled(true);
+        }
     }
 
     /**
@@ -621,6 +682,90 @@ public class ProgressiveDifficultyEvents {
                             : " uso un Totem de la Inmortalidad, pero fallo."));
             serverLevel.getServer().getPlayerList().broadcastSystemMessage(message, false);
         }
+    }
+
+    @SubscribeEvent
+    public void onLivingDeath(LivingDeathEvent event) {
+        if (!FeatureToggles.get().isEnabled(FeatureToggles.Feature.DEATH_SYSTEM)) {
+            return;
+        }
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (player.getServer() != null && player.getServer().getPlayerList().isOp(player.getGameProfile())) {
+            return;
+        }
+
+        player.setGameMode(GameType.SPECTATOR);
+        DeathSystem.markDead(player);
+
+        Component deathMessage = event.getSource().getLocalizedDeathMessage(player);
+        player.getServer().getPlayerList().getPlayers().forEach(p ->
+                p.displayClientMessage(deathMessage.copy().withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD), true));
+
+        playDeathAnimation(player.getServer());
+
+        DelayedTaskScheduler.schedule(DeathSystem.banAfterSeconds() * 20, () -> {
+            if (player.connection != null) {
+                player.connection.disconnect(Component.literal("Has muerto. Alguien debe revivirte."));
+            }
+        });
+    }
+
+    private static void playDeathAnimation(net.minecraft.server.MinecraftServer server) {
+        int start = 0xE000 + 292 + 287 + 290 + 287 + 294 + 294 + 295 + 288; // muerte frames start right after yellow
+        int count = 92;
+        net.minecraft.resources.ResourceLocation font =
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(ProgressiveDifficultyMod.MOD_ID, "ruleta");
+
+        for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
+            for (int i = 0; i < count; i++) {
+                int codepoint = start + i;
+                DelayedTaskScheduler.schedule(Math.max(i, 1), () -> {
+                    viewer.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket(0, 2, 0));
+                    viewer.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                            Component.literal(String.valueOf((char) codepoint)).withStyle(style -> style.withFont(font))));
+                });
+            }
+            DelayedTaskScheduler.schedule(count + 2, () -> viewer.connection.send(
+                    new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(Component.empty())));
+            viewer.level().playSound(null, viewer.blockPosition(),
+                    net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
+                            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(ProgressiveDifficultyMod.MOD_ID, "muerte")),
+                    net.minecraft.sounds.SoundSource.MASTER, 4.0F, 1.0F);
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        if (FeatureToggles.get().isEnabled(FeatureToggles.Feature.DEATH_SYSTEM) && DeathSystem.isDead(player.getUUID())) {
+            DelayedTaskScheduler.schedule(1, () -> player.connection.disconnect(
+                    Component.literal("Estas muerto, alguien debe revivirte.")));
+            return;
+        }
+
+        if (DeathSystem.consumeAlertRevive(player.getUUID())) {
+            player.getServer().getPlayerList().broadcastSystemMessage(Component.literal(
+                    "\u2727 " + player.getName().getString() + " ha resucitado! \u2727")
+                    .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD), false);
+            DeathSystem.save(player.getServer());
+        }
+
+        if (player.gameMode.getGameModeForPlayer() == GameType.SPECTATOR) {
+            player.setGameMode(GameType.SURVIVAL);
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        // Reserved for a custom leave broadcast if you want one later -
+        // vanilla's own "X left the game" message can't be suppressed
+        // without a Mixin into PlayerList, so it still shows alongside
+        // anything added here.
     }
 
     @SubscribeEvent

@@ -66,7 +66,64 @@ Todavia no estan en una pestaña creativa ni en un comando `/items` (eso viene c
 /give @s progressivedifficulty:portable_golden_anvil    - clic derecho: repara toda tu armadura puesta y se consume 1 unidad.
 ```
 
-Quedan pendientes para una proxima sesion: `marker_item` (herramienta de marcacion de posiciones) y `resurrection_spoon` (dependen del sistema de fogata/resurreccion y base de datos de usuarios, que todavia no se portaron).
+## Sistema de muerte / eliminacion
+
+```mcfunction
+/sistemamuerte
+```
+Toggle (empieza desactivado). Con esto activado, cuando un jugador (no-op) muere: se lo pasa a modo espectador, queda marcado como "muerto" (persistido), se reproduce la animacion real de "muerte" (los 92 frames de tu resourcepack) a todos los jugadores con su sonido, y a los `/sistemamuerte`-segundos configurados (10 por defecto) se lo expulsa del servidor. Si intenta reconectarse mientras sigue muerto, se lo vuelve a expulsar automaticamente.
+
+```mcfunction
+/revive <jugador> <avisar:true|false>
+```
+Revive a un jugador (acepta jugadores desconectados via el selector de perfil). Si `avisar` es `false`, se le muestra un anuncio de "ha resucitado" la proxima vez que entre y suma a su contador de veces revivido.
+
+## Fogata (zona de resurreccion)
+
+```mcfunction
+/fogata set      - te da la herramienta de marcacion (marker_item)
+/fogata apply    - guarda el perimetro marcado como zona de fogata
+/fogata remove   - borra la zona de fogata
+/fogata help
+```
+
+```mcfunction
+/give @s progressivedifficulty:resurrection_spoon
+```
+Clic derecho dentro de la zona de fogata (con alma) muestra en el chat una lista clickeable de jugadores muertos - click en un nombre para revivirlo, gasta 1 alma propia y 1 cuchara.
+
+**Simplificacion importante:** el menu original del plugin (`FogataMenu`) es un GUI paginado con cabezas de jugador 3D. Lo cambie por una lista de texto clickeable en el chat -el resultado funcional es el mismo (elegis a quien revivir con un click)- para evitar construir un `AbstractContainerMenu`/`Screen` custom desde cero (mucho mas riesgo de errores de compilacion sin poder probar localmente). Si despues querés el GUI real con cabezas, es una sesion aparte.
+
+## Join / Quit
+
+Al entrar: si el jugador esta marcado como muerto, se lo expulsa de nuevo; si tiene un aviso de resurreccion pendiente, se anuncia a todo el server; si estaba en espectador (por el sistema de muerte) queda en survival.
+
+**Limitacion real:** no pude suprimir el mensaje vanilla de "X se unio a la partida/X salio de la partida" sin meter un Mixin en `PlayerList` (mas riesgo de compilacion). Por ahora conviven: el mensaje vanilla de siempre, mas el anuncio de resurreccion cuando corresponde.
+
+## /dedsafio
+
+```mcfunction
+/dedsafio
+/dedsafio version
+```
+Ayuda basica y version del mod (no hay un "reload" real ya que este mod no usa un sistema de config recargable en caliente).
+
+## Herramienta de marcacion
+
+```mcfunction
+/give @s progressivedifficulty:marker_item
+```
+
+Golden-hoe-style, port de `MarkerItem`: **clic izquierdo** en un bloque define la posicion 1, **clic derecho** define la posicion 2. Las posiciones quedan guardadas en el propio item (NBT), no se puede soltar (`Q`) mientras las tenga. Todavia no esta conectado a nada (el plugin la usaba para marcar la fogata de resurreccion) - queda lista para cuando portemos ese sistema.
+
+## /soul
+
+```mcfunction
+/soul <jugador>
+/soul set <jugador> <true|false>
+```
+
+Bandera booleana por jugador ("tiene alma" o no), persistida por mundo. Por defecto todos tienen alma (`true`), igual que el plugin original. Es la unica pieza portada del sistema de usuarios (`User`/`UserManager`) - el resto (`dead`, `revived-times`, `alert-revive`) pertenece al sistema de revivir, que se dejo afuera.
 
 Las texturas de estos 8 items son placeholders generados a mano (pixel art simple 16x16), no el arte original del plugin. Reemplazalas cuando quieras en `src/main/resources/assets/progressivedifficulty/textures/item/`.
 

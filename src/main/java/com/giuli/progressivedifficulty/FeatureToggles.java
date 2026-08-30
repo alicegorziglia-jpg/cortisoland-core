@@ -45,7 +45,8 @@ public class FeatureToggles {
         NO_VILLAGER_BREEDING("aldeanos_no_se_reproducen"),
         ENDERPEARL_HALF_HEALTH("enderpearl_quita_mitad_de_vida"),
         PIGLINS_DROP_NUGGETS("piglins_sueltan_pepitas_de_oro"),
-        GOLEMS_REPLACED_BY_WARDENS("golems_de_hierro_reemplazados_por_wardens");
+        GOLEMS_REPLACED_BY_WARDENS("golems_de_hierro_reemplazados_por_wardens"),
+        DEATH_SYSTEM("sistema_de_muerte_eliminacion");
 
         private final String key;
 
