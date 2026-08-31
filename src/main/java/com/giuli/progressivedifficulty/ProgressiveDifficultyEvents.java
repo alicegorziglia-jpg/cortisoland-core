@@ -415,12 +415,11 @@ public class ProgressiveDifficultyEvents {
                 && FeatureToggles.get().isEnabled(FeatureToggles.Feature.GOLEMS_REPLACED_BY_WARDENS)
                 && event.getLevel() instanceof ServerLevel serverLevel) {
             event.setCanceled(true);
-            net.minecraft.world.entity.monster.warden.Warden warden = EntityType.WARDEN.create(serverLevel);
+            BlockPos pos = event.getEntity().blockPosition();
+            net.minecraft.world.entity.monster.warden.Warden warden = EntityType.WARDEN.spawn(
+                    serverLevel, null, null, null, pos, net.minecraft.world.entity.MobSpawnType.COMMAND, false, false);
             if (warden != null) {
-                BlockPos pos = event.getEntity().blockPosition();
-                warden.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
                 warden.setPersistenceRequired();
-                serverLevel.addFreshEntity(warden);
             }
         }
 

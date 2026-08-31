@@ -36,6 +36,7 @@ public class DeathSystem {
     private static final int DEFAULT_LIVES = 5;
 
     private static final Map<UUID, Boolean> DEAD = new HashMap<>();
+    private static final Map<UUID, String> DEAD_NAMES = new HashMap<>();
     private static final Map<UUID, Boolean> ALERT_REVIVE = new HashMap<>();
     private static final Map<UUID, Integer> REVIVED_TIMES = new HashMap<>();
     private static final Map<UUID, Integer> DEATH_COUNT = new HashMap<>();
@@ -140,7 +141,25 @@ public class DeathSystem {
 
     public static void markDead(ServerPlayer player) {
         DEAD.put(player.getUUID(), true);
+        DEAD_NAMES.put(player.getUUID(), player.getGameProfile().getName());
         save(player.getServer());
+    }
+
+    /**
+     * Every currently-dead player's UUID and last known name, using the name
+     * saved at the moment they died - works even if they're offline (which
+     * they usually are, since dying kicks them). Avoids depending on the
+     * server's profile cache, whose exact lookup-by-UUID API we couldn't
+     * fully verify without compiling.
+     */
+    public static Map<UUID, String> getDeadEntries() {
+        Map<UUID, String> result = new HashMap<>();
+        DEAD.forEach((uuid, dead) -> {
+            if (dead) {
+                result.put(uuid, DEAD_NAMES.getOrDefault(uuid, uuid.toString()));
+            }
+        });
+        return result;
     }
 
     public static boolean consumeAlertRevive(UUID uuid) {
@@ -182,6 +201,7 @@ public class DeathSystem {
                 String value = properties.getProperty(key);
                 switch (parts[1]) {
                     case "dead" -> DEAD.put(uuid, Boolean.parseBoolean(value));
+                    case "deadName" -> DEAD_NAMES.put(uuid, value);
                     case "alertRevive" -> ALERT_REVIVE.put(uuid, Boolean.parseBoolean(value));
                     case "revivedTimes" -> REVIVED_TIMES.put(uuid, Integer.parseInt(value));
                     case "deathCount" -> DEATH_COUNT.put(uuid, Integer.parseInt(value));
@@ -207,6 +227,7 @@ public class DeathSystem {
         Path file = file(server);
         Properties properties = new Properties();
         DEAD.forEach((uuid, value) -> properties.setProperty(uuid + ":dead", Boolean.toString(value)));
+        DEAD_NAMES.forEach((uuid, name) -> properties.setProperty(uuid + ":deadName", name));
         ALERT_REVIVE.forEach((uuid, value) -> properties.setProperty(uuid + ":alertRevive", Boolean.toString(value)));
         REVIVED_TIMES.forEach((uuid, value) -> properties.setProperty(uuid + ":revivedTimes", Integer.toString(value)));
         DEATH_COUNT.forEach((uuid, value) -> properties.setProperty(uuid + ":deathCount", Integer.toString(value)));

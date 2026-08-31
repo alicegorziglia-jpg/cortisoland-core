@@ -76,17 +76,15 @@ public class ResurrectionSpoonSystem {
             return;
         }
 
-        List<ServerPlayer> deadPlayers = serverPlayer.getServer().getPlayerList().getPlayers().stream()
-                .filter(candidate -> DeathSystem.isDead(candidate.getUUID()))
-                .toList();
+        java.util.Map<UUID, String> deadEntries = DeathSystem.getDeadEntries();
 
-        if (deadPlayers.isEmpty()) {
+        if (deadEntries.isEmpty()) {
             player.displayClientMessage(Component.literal("No hay jugadores muertos para revivir."), false);
             return;
         }
 
         serverPlayer.openMenu(new SimpleMenuProvider(
-                (windowId, inventory, p) -> ReviveMenu.create(windowId, inventory, serverPlayer, deadPlayers, consumesSoul, hand),
+                (windowId, inventory, p) -> ReviveMenu.create(windowId, inventory, serverPlayer, deadEntries, consumesSoul, hand),
                 Component.literal("Revivir jugador")));
     }
 
@@ -121,16 +119,13 @@ public class ResurrectionSpoonSystem {
             SoulSystem.save(viewer.getServer());
         }
 
+        String targetName = DeathSystem.getDeadEntries().getOrDefault(targetUuid, "el jugador");
+
         DeathSystem.reviveWithAlert(targetUuid);
         DeathSystem.save(viewer.getServer());
 
         held.shrink(1);
 
-        String targetName = viewer.getServer().getPlayerList().getPlayers().stream()
-                .filter(p -> p.getUUID().equals(targetUuid))
-                .findFirst()
-                .map(p -> p.getName().getString())
-                .orElse("el jugador");
         viewer.displayClientMessage(Component.literal("Has revivido a " + targetName + "!")
                 .withStyle(ChatFormatting.GREEN), false);
     }

@@ -2,7 +2,10 @@ package com.giuli.progressivedifficulty;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
+import com.mojang.authlib.GameProfile;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -26,6 +29,10 @@ import net.minecraft.world.item.component.ResolvableProfile;
  * for free (texture, slot layout, network sync) - only clicked() is
  * overridden so clicking a head revives that player instead of moving the
  * item around.
+ *
+ * <p>Built from UUID+name pairs (not ServerPlayer instances) since dead
+ * players are almost always offline by the time someone tries to revive
+ * them - the elimination flow kicks them.
  */
 public class ReviveMenu extends ChestMenu {
     private final List<UUID> slotToPlayer;
@@ -34,20 +41,20 @@ public class ReviveMenu extends ChestMenu {
     private final InteractionHand triggeringHand;
 
     public static ReviveMenu create(int windowId, Inventory playerInventory, ServerPlayer viewer,
-            List<ServerPlayer> deadPlayers, boolean consumesSoul, InteractionHand triggeringHand) {
+            Map<UUID, String> deadEntries, boolean consumesSoul, InteractionHand triggeringHand) {
         SimpleContainer container = new SimpleContainer(27);
         List<UUID> mapping = new ArrayList<>();
 
         int slot = 0;
-        for (ServerPlayer dead : deadPlayers) {
+        for (Map.Entry<UUID, String> entry : deadEntries.entrySet()) {
             if (slot >= 27) {
                 break;
             }
             ItemStack head = new ItemStack(Items.PLAYER_HEAD);
-            head.set(DataComponents.PROFILE, new ResolvableProfile(dead.getGameProfile()));
-            head.set(DataComponents.CUSTOM_NAME, Component.literal(dead.getName().getString()));
+            head.set(DataComponents.PROFILE, new ResolvableProfile(new GameProfile(entry.getKey(), entry.getValue())));
+            head.set(DataComponents.CUSTOM_NAME, Component.literal(entry.getValue()));
             container.setItem(slot, head);
-            mapping.add(dead.getUUID());
+            mapping.add(entry.getKey());
             slot++;
         }
 
