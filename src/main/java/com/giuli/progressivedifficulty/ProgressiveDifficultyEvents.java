@@ -417,7 +417,7 @@ public class ProgressiveDifficultyEvents {
             event.setCanceled(true);
             BlockPos pos = event.getEntity().blockPosition();
             net.minecraft.world.entity.monster.warden.Warden warden = EntityType.WARDEN.spawn(
-                    serverLevel, null, null, null, pos, net.minecraft.world.entity.MobSpawnType.COMMAND, false, false);
+                    serverLevel, pos, net.minecraft.world.entity.MobSpawnType.COMMAND);
             if (warden != null) {
                 warden.setPersistenceRequired();
             }
